@@ -1,5 +1,7 @@
 // dgram 模块提供了对 udp socket 的封装
 import dgram from "dgram";
+import { CLIENT_STATUS, CLIENT_ACTIONS } from "./constant.js";
+
 const SEND_INTERVAL = 1000;
 const SERVER_PORT = 8080;
 const SERVER_ADDRESS = "127.0.0.1";
@@ -9,6 +11,7 @@ const DEFAULT_TIME_OUT = 500;
 // 客户端端口号随机，服务端端口号8080
 
 class UDPClient {
+  STATUS = null;
   SYN = 0;
   ACK = 0;
   SEQ = 0;
@@ -58,6 +61,9 @@ class UDPClient {
       msg: "firstHandshake",
     };
 
+    // 状态变化
+    this.STATUS = CLIENT_STATUS.SYN_SENT;
+    console.log("client状态为", this.STATUS);
     // 第一次握手
     this.udt_send(JSON.stringify(dataGram));
   };
@@ -76,14 +82,18 @@ class UDPClient {
       const { ack_with_seq, checksum, ack, syn, seq } = JSON.parse(msg);
 
       if (syn) {
-        console.log(JSON.parse(msg));
+        console.log(`client 收到第二次握手, syn为1, ack为${ack}, seq为${seq}`);
         if (ack === this.SEQ + 1) {
           const dataGram = {
-            ACK: seq + 1,
-            SEQ: Math.ceil(Math.random() * 10),
+            syn: 1,
+            ack: seq + 1,
+            seq: Math.ceil(Math.random() * 10),
             msg: "thirdHandshake",
           };
 
+          this.STATUS = CLIENT_STATUS.ESTABLISHED;
+          console.log("client 状态为", this.STATUS);
+          console.log("client 建立连接!🚀");
           // 第三次握手
           this.udt_send(JSON.stringify(dataGram));
         }

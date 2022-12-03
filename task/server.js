@@ -1,5 +1,7 @@
 // dgram 模块提供了对 udp socket 的封装
 import dgram from "dgram";
+import { SERVER_STATUS, SERVER_ACTIONS } from "./constant.js";
+
 const SERVER_PORT = 8080;
 
 class UDPServer {
@@ -22,7 +24,9 @@ class UDPServer {
   }
 
   // 该方法暴露给外部, 当初始化该 class 之后调用
-  receive_message = () => this.init();
+  receive_message = () => {
+    this.init();
+  };
 
   init = () => {
     this.init_bind_port();
@@ -38,14 +42,14 @@ class UDPServer {
       //   `${SERVER_PORT} 端口的 udp 服务接收到了来自 ${address}:${port} 的消息`
       // );
 
-      console.log(JSON.parse(pkt));
       const { seq, checksum, data, syn, ack, msg } = JSON.parse(pkt);
 
       // 第二次握手
       if (syn) {
         if (msg === "firstHandshake")
-          this.secondHandshake({ seq, port, address });
-        else if (msg === "thirdHandshake") this.establishConnection();
+          this.secondHandshake({ seq, ack, port, address });
+        else if (msg === "thirdHandshake")
+          this.establishConnection({ seq, ack });
 
         return;
       }
@@ -88,6 +92,7 @@ class UDPServer {
 
   // 第二次握手
   secondHandshake({ seq, port, address }) {
+    console.log(`server 收到第一次握手, syn为1, seq为${seq}`);
     this.SYN = 1;
     this.ACK = seq + 1;
     this.SEQ = Math.ceil(Math.random() * 10);
@@ -99,14 +104,19 @@ class UDPServer {
       mag: "secondHandshake",
     };
 
+    // 变更状态
+    this.STATUS = SERVER_STATUS.SYN_REVD;
+    console.log("server 状态为", this.STATUS);
     this.udt_send(JSON.stringify(dataGram), { port, address });
   }
 
   // 三次握手后建立连接
-  establishConnection() {
-    console.log("------------------------");
-    console.log("建立连接");
-    this.STATUS = "";
+  establishConnection({ seq, ack }) {
+    console.log(`server 收到第三次握手, ack为${ack}, seq为${seq}`);
+    this.STATUS = SERVER_STATUS.ESTABLISHED;
+    console.log("server 状态为", this.STATUS);
+
+    console.log("server 建立连接!🚀");
   }
 
   dispatch = (action, { packet, port, address }) => {
@@ -171,9 +181,11 @@ class UDPServer {
 
   // 监听端口
   init_on_listening = () =>
-    this.udp_server.on("listening", () =>
-      console.log(`upd 服务正在监听 ${SERVER_PORT} 端口`)
-    );
+    this.udp_server.on("listening", () => {
+      console.log(`upd server服务正在监听 ${SERVER_PORT} 端口🚀`);
+      this.STATUS = SERVER_STATUS.LISTENING;
+      console.log("server 状态为", this.STATUS);
+    });
 
   // 错误处理
   init_on_error = () =>
