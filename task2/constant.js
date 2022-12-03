@@ -1,3 +1,10 @@
+// 服务端IP
+export const SERVER_ADDRESS = "127.0.0.1";
+// 服务端端口号
+export const SERVER_PORT = 8080;
+// 客户端端口号
+export const CLIENT_PORT = 13000;
+
 // 客户端状态
 export const CLIENT_STATUS = {
   CLOSE: "CLOSE",
@@ -11,7 +18,6 @@ export const CLIENT_STATUS = {
 // 客户端行为
 export const CLIENT_ACTIONS = {
   RDT_SEND: "rdt_send",
-  NOT_CORRUPT: "not_corrupt",
   CORRUPT: "corrupt",
 };
 
@@ -28,6 +34,4 @@ export const SERVER_STATUS = {
 // 服务端行为
 export const SERVER_ACTIONS = {
   RDT_RECEIVE: "rdt_rcv",
-  NOT_CORRUPT: "not_corrupt", // 该动作在校验和没出错的情况下触发
-  CORRUPT: "corrupt", // 该动作在校验和出错的情况下触发
 };
