@@ -5,10 +5,11 @@ import { SERVER_STATUS, SERVER_ACTIONS } from "./constant.js";
 const SERVER_PORT = 8080;
 
 class UDPServer {
-  STATUS = null;
+  STATUS = SERVER_STATUS.CLOSE;
   SYN = 0;
   ACK = 0;
   SEQ = 0;
+  FIN = 0;
   // 上一次的 seq 理论上永远和渴望得到的 seq 是不一样的
   prev_seq = 1;
   // 用该变量表示服务端渴望接收到的分组的序号
@@ -32,6 +33,7 @@ class UDPServer {
     this.init_bind_port();
     this.init_on_message();
     this.init_on_listening();
+    this.init_on_close();
     this.init_on_error();
   };
 
@@ -42,7 +44,7 @@ class UDPServer {
       //   `${SERVER_PORT} 端口的 udp 服务接收到了来自 ${address}:${port} 的消息`
       // );
 
-      const { seq, checksum, data, syn, ack, msg } = JSON.parse(pkt);
+      const { seq, checksum, data, syn, ack, msg, fin } = JSON.parse(pkt);
 
       // 第二次握手
       if (syn) {
@@ -50,13 +52,17 @@ class UDPServer {
           this.secondHandshake({ seq, ack, port, address });
         else if (msg === "thirdHandshake")
           this.establishConnection({ seq, ack });
-
-        return;
       }
 
-      return;
-
-      if (checksum && seq === this.desired_seq) {
+      // 挥手
+      else if (fin) {
+        this.firstWate({ port, address });
+      } else if (ack) {
+        // 状态变化
+        this.STATUS = SERVER_STATUS.CLOSE;
+        console.log("server 状态为", this.STATUS);
+        this.udp_server.close();
+      } else if (!syn && !fin && checksum && seq === this.desired_seq) {
         // 如果校验和没有出错并且客户端传过来的序号和服务端渴望得到的序号也一致
         // 那就可以返回 ACK 报文
         console.log(
@@ -101,7 +107,7 @@ class UDPServer {
       syn: this.SYN,
       ack: this.ACK,
       seq: this.SEQ,
-      mag: "secondHandshake",
+      msg: "secondHandshake",
     };
 
     // 变更状态
@@ -118,6 +124,39 @@ class UDPServer {
 
     console.log("server 建立连接!🚀");
   }
+
+  firstWate = ({ port, address }) => {
+    const dataGram = {
+      ack: 1,
+      msg: "secondWave",
+    };
+
+    // 变更状态
+    this.STATUS = SERVER_STATUS.CLOSE_WAIT;
+    console.log("server 状态为", this.STATUS);
+    this.udt_send(JSON.stringify(dataGram), { port, address });
+
+    // 如果数据传输完毕
+    if (true) {
+      this.thirdWave({ port, address });
+    }
+  };
+
+  thirdWave = ({ port, address }) => {
+    console.log("server 开始尝试关闭连接");
+
+    this.FIN = 1;
+    const dataGram = {
+      fin: this.FIN,
+      msg: "thirdWave",
+    };
+
+    // 状态变化
+    this.STATUS = SERVER_STATUS.LAST_ACK;
+    console.log("server 状态为", this.STATUS);
+    // 第三次挥手
+    this.udt_send(JSON.stringify(dataGram), { port, address });
+  };
 
   dispatch = (action, { packet, port, address }) => {
     switch (action) {
@@ -186,6 +225,11 @@ class UDPServer {
       this.STATUS = SERVER_STATUS.LISTENING;
       console.log("server 状态为", this.STATUS);
     });
+
+  // 当服务端关闭
+  init_on_close = () => {
+    this.udp_server.on("close", () => console.log("udp 客户端关闭"));
+  };
 
   // 错误处理
   init_on_error = () =>

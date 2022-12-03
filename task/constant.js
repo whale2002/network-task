@@ -1,7 +1,11 @@
 // 客户端状态
 export const CLIENT_STATUS = {
+  CLOSE: "CLOSE",
   SYN_SENT: "SYN_SENT",
   ESTABLISHED: "ESTABLISHED",
+  FIN_WAIT_1: "FIN_WAIT_1",
+  FIN_WAIT_2: "FIN_WAIT_2",
+  TIME_WAIT: "TIME_WAIT",
 };
 
 // 客户端行为
@@ -13,9 +17,12 @@ export const CLIENT_ACTIONS = {
 
 // 服务端状态
 export const SERVER_STATUS = {
+  CLOSE: "CLOSE",
   LISTENING: "LISTENING",
   SYN_REVD: "SYN_REVD",
   ESTABLISHED: "ESTABLISHED",
+  CLOSE_WAIT: "CLOSE_WAIT",
+  LAST_ACK: "LAST_ACK",
 };
 
 // 服务端行为

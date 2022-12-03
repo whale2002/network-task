@@ -11,10 +11,11 @@ const DEFAULT_TIME_OUT = 500;
 // 客户端端口号随机，服务端端口号8080
 
 class UDPClient {
-  STATUS = null;
+  STATUS = CLIENT_STATUS.CLOSE;
   SYN = 0;
   ACK = 0;
   SEQ = 0;
+  FIN = 0;
   prev_msg = null;
   buffer_queue = [];
   // 设置一个初始序号 该序号要在 0 和 1 之间来回切换
@@ -68,18 +69,36 @@ class UDPClient {
     this.udt_send(JSON.stringify(dataGram));
   };
 
+  // 释放连接
+  close = () => {
+    console.log("client开始尝试关闭连接");
+
+    this.FIN = 1;
+
+    const dataGram = {
+      fin: this.FIN,
+      msg: "firstWave",
+    };
+
+    // 状态变化
+    this.STATUS = CLIENT_STATUS.FIN_WAIT_1;
+    console.log("client状态为", this.STATUS);
+    // 第一次挥手
+    this.udt_send(JSON.stringify(dataGram));
+  };
+
   //  该方法作为暴露给上层的接口进行调用
   send_message = (msg) => this.dispatch("rdt_send", msg);
 
   // 接收消息
   init_on_message = () =>
-    this.udp_client.on("message", (msg, { port, address }) => {
+    this.udp_client.on("message", (pkt, { port, address }) => {
       // console.log(`udp 客户端接收到了来自 ${address}:${port} 的消息`);
       // 把上一次发送的 msg 也就是队列最左侧的 msg 先拿出来, 这个 msg 有可能发送成功, 也有可能发送失败
       // const prev_msg = this.buffer_queue.shift();
       // 在当前协议中 udp 的服务端也会返回 checksum, 因为此时的 ack 应答中其实也可能会产生错误
       // 当前协议中不再需要其他应答报文 只需要有个 ACK 应答就好
-      const { ack_with_seq, checksum, ack, syn, seq } = JSON.parse(msg);
+      const { ack_with_seq, checksum, ack, syn, seq, msg } = JSON.parse(pkt);
 
       if (syn) {
         console.log(`client 收到第二次握手, syn为1, ack为${ack}, seq为${seq}`);
@@ -99,10 +118,30 @@ class UDPClient {
         }
 
         return;
+      } else if (msg === "secondWave") {
+        console.log("client收到了server的关闭确认");
+        this.STATUS = CLIENT_STATUS.FIN_WAIT_2;
+        console.log("client状态为", this.STATUS);
+        return;
+      } else if (msg === "thirdWave") {
+        this.STATUS = CLIENT_STATUS.TIME_WAIT;
+        console.log("client状态为", this.STATUS);
+
+        this.fourthWave();
+
+        setTimeout(() => {
+          this.STATUS = CLIENT_STATUS.CLOSE;
+          console.log("client状态为", this.STATUS);
+          this.udp_client.close();
+        }, 2000);
+
+        return;
       }
 
       // 不过需要对 ACK 报文的序号做处理
+
       const { is_ack, ack_seq } = this.get_ack_and_seq(ack_with_seq);
+
       if (!checksum) {
         // ACK 应答报文在网络传输过程中其实也是可能发生错误的 此时 checksum 会不正确
         console.log(
@@ -129,6 +168,17 @@ class UDPClient {
         }
       }
     });
+
+  fourthWave = () => {
+    this.ACK = 1;
+    const dataGram = {
+      ack: this.ACK,
+      msg: "fourthWave",
+    };
+
+    // 第四次挥手
+    this.udt_send(JSON.stringify(dataGram));
+  };
 
   dispatch = (action, msg) => {
     switch (action) {
@@ -201,8 +251,9 @@ class UDPClient {
   init_bind_port = () => this.udp_client.bind(this.CLIENT_PORT);
 
   // 当客户端关闭
-  init_on_close = () =>
+  init_on_close = () => {
     this.udp_client.on("close", () => console.log("udp 客户端关闭"));
+  };
 
   // 错误处理
   init_on_error = () =>
@@ -246,6 +297,10 @@ const client = new UDPClient({
 // 三次握手建立连接
 client.connect();
 
+// 传输数据
+// if (client.STATUS === CLIENT_STATUS.ESTABLISHED) {
+// }
+
 // 每隔多少秒定时给客户端的 UDP 状态机派发一个发送消息的动作
 // setInterval(
 //   (
@@ -254,3 +309,6 @@ client.connect();
 //   )(0),
 //   SEND_INTERVAL
 // );
+
+// 关闭连接
+client.close();
