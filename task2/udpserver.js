@@ -2,6 +2,7 @@
 import dgram from "dgram";
 import { SERVER_STATUS, SERVER_ACTIONS, SERVER_PORT } from "./constant.js";
 
+// 模拟丢包率，暂定为50%
 const LOSSRATE = 0.5;
 
 class UDPServer {
@@ -15,6 +16,7 @@ class UDPServer {
   // 序号
   SEQ = 0;
 
+  // 构造函数
   constructor({ SERVER_PORT }) {
     if (SERVER_PORT) {
       this.udp_server = dgram.createSocket("udp4");
@@ -27,6 +29,7 @@ class UDPServer {
     this.init();
   };
 
+  // 初始化
   init = () => {
     this.init_bind_port();
     this.init_on_message();
@@ -38,7 +41,7 @@ class UDPServer {
   // 接收消息
   init_on_message = () => {
     this.udp_server.on("message", (pkt, { port, address }) => {
-      const { data, syn, ack, msg, fin } = JSON.parse(pkt);
+      const { data, syn, ack, msg, fin, seq } = JSON.parse(pkt);
 
       // 第二次握手
       if (syn) {
@@ -154,8 +157,6 @@ class UDPServer {
     }
   };
 
-  // flag 表示 NAK 或 ACK 标志位
-  // 由于返回的应答报文实际上也可能会发生错误 所以也需要有个 checksum
   make_pkt = (data) => {
     return JSON.stringify({ data });
   };

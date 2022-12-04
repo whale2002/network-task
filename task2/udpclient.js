@@ -7,12 +7,13 @@ import {
   SERVER_PORT,
   CLIENT_PORT,
 } from "./constant.js";
+// 导入数据包类
 import Dgram from "./Dgram.js";
 
 const DEFAULT_TIME_OUT = 100;
 const dgramNumber = 12;
 
-// 客户端端口号随机，服务端端口号8080
+// 客户端端口号13000，服务端端口号8080
 
 class UDPClient {
   // 客户端连接状态
@@ -254,15 +255,11 @@ class UDPClient {
   };
 
   // 错误处理
-  init_on_error = () =>
+  init_on_error = () => {
     this.udp_client.on("error", (err) =>
       console.log(`upd 服务发生错误: ${err}`)
     );
-
-  get_ack_and_seq = (ack_with_seq) => ({
-    is_ack: "ACK" === ack_with_seq.replace(/(\d)+/gi, "").toLocaleUpperCase(),
-    ack_seq: Number(ack_with_seq.replace(/[a-zA-Z]+/gi, "")),
-  });
+  };
 
   start_timer = (current_seq) => {
     const seq = current_seq;
@@ -289,10 +286,10 @@ const client = new UDPClient({
   DEFAULT_TIME_OUT,
 });
 
-// 三次握手建立连接
-// setTimeout(() => {
-//   client.connect();
-// }, 0);
+// 三次握手建立连接;
+setTimeout(() => {
+  client.connect();
+}, 0);
 
 // 传输数据
 setTimeout(() => {
@@ -307,10 +304,10 @@ setTimeout(() => {
   statistics();
 }, 3000);
 
-// setTimeout(() => {
-//   // 关闭连接
-//   client.close();
-// }, 8000);
+setTimeout(() => {
+  // 关闭连接
+  client.close();
+}, 8000);
 
 function statistics() {
   const length = client.RTTS.length;

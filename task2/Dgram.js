@@ -1,3 +1,4 @@
+// 定义数据包结构
 export default class Dgram {
   constructor(seq, data) {
     // 发送时间
